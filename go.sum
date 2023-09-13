@@ -1,0 +1,4 @@
+github.com/jfigge/guilib v0.0.3 h1:piisn/kgMD7jjuhxUUSvmaGCCPNijBNBF1rc5tk05rc=
+github.com/jfigge/guilib v0.0.3/go.mod h1:u1h/DKZXROZTXA10MbFsFX1sUDqT1bzOhW067vDI9eM=
+github.com/veandco/go-sdl2 v0.4.35 h1:NohzsfageDWGtCd9nf7Pc3sokMK/MOK+UA2QMJARWzQ=
+github.com/veandco/go-sdl2 v0.4.35/go.mod h1:OROqMhHD43nT4/i9crJukyVecjPNYYuCofep6SNiAjY=

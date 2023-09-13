@@ -1,0 +1,185 @@
+/*
+ * Copyright (C) 2023 by Jason Figge
+ */
+
+package controller
+
+import (
+	"math"
+
+	"g3-engine/matrix"
+	"g3-engine/shapes"
+
+	"github.com/jfigge/guilib/graphics"
+	"github.com/jfigge/guilib/graphics/fonts"
+	"github.com/veandco/go-sdl2/sdl"
+)
+
+const (
+	FPSX = 605
+	FOV  = 90
+	DOV  = 20
+)
+
+var (
+	Black   = sdl.Color{R: 0x00, G: 0x00, B: 0x00, A: 0xFF}
+	Red     = sdl.Color{R: 0xFF, G: 0x00, B: 0x00, A: 0xFF}
+	Yellow  = sdl.Color{R: 0xFF, G: 0xFF, B: 0x00, A: 0xFF}
+	Green   = sdl.Color{R: 0x00, G: 0xFF, B: 0x00, A: 0xFF}
+	Cyan    = sdl.Color{R: 0x00, G: 0xFF, B: 0xFF, A: 0xFF}
+	Blue    = sdl.Color{R: 0x00, G: 0x00, B: 0xFF, A: 0xFF}
+	Magenta = sdl.Color{R: 0xFF, G: 0x00, B: 0xFF, A: 0xFF}
+	White   = sdl.Color{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xFF}
+)
+
+type DirectionCd int
+
+const (
+	DirectionCdForward DirectionCd = iota
+	DirectionCdBackward
+	DirectionCdAntiClockwise
+	DirectionCdClockwise
+	DirectionCdMoveUp
+	DirectionCdMoveDown
+	DirectionCdLookUp
+	DirectionCdLookDown
+	DirectionCdStrafeLeft
+	DirectionCdStrafeRight
+)
+
+type Camera struct {
+	view  *shapes.Vector
+	light *shapes.Vector
+	l     float64 // Looking
+	a     float64 // viewing angle
+	sin3D float64
+	cos3D float64
+	sin2D float64
+	cos2D float64
+}
+
+type Fov struct {
+	width  float64
+	height float64
+	cw     float64
+	ch     float64
+	ndov   float64 // near depth of view
+	fdov   float64 // far depth of view
+}
+
+type Controller struct {
+	graphics.BaseHandler
+	graphics.CoreMethods
+	camera *Camera
+	fov    *Fov
+	shapes []*shapes.Shape
+}
+
+func NewController(width, height float64) *Controller {
+	c := &Controller{
+		camera: &Camera{
+			view:  shapes.NewVector(0, 0, 0),
+			light: shapes.NewVector(0, 0, -1),
+			a:     0,
+			l:     0,
+			sin3D: math.Sin(0),
+			cos3D: math.Cos(0),
+			sin2D: math.Sin(0),
+			cos2D: math.Cos(0),
+		},
+		fov: &Fov{
+			width:  width,
+			height: height,
+			cw:     width / 2,
+			ch:     height / 2,
+		},
+	}
+	f := FOV * math.Pi / 360
+	c.fov.ndov = 0.1  //c.fov.cw * math.Tan(f)
+	c.fov.fdov = 1000 //c.fov.ndov * DOV
+	a := width / height
+
+	shapes := shapes.LoadShapes(matrix.Projection(a, 1/f, c.fov.ndov, c.fov.fdov))
+	c.shapes = append(c.shapes,
+		shapes.Spaceship().
+			Locate(c.fov.cw, c.fov.ch, c.fov.ndov*2).
+			Rotate(22, 44, 66).
+			Scale(50, 50, 50),
+	)
+	return c
+}
+
+func (c *Controller) Init(canvas *graphics.Canvas) {
+	fonts.LoadFonts(canvas.Renderer())
+	graphics.ErrorTrap(canvas.Renderer().SetDrawBlendMode(sdl.BLENDMODE_BLEND))
+	canvas.Renderer().SetLogicalSize(int32(c.fov.width*2+1), int32(c.fov.height))
+	c.AddDestroyer(fonts.FreeFonts)
+}
+
+func (c *Controller) OnDraw(renderer *sdl.Renderer) {
+	graphics.ErrorTrap(c.Clear(renderer, uint32(0x232323)))
+	c.draw2D(renderer)
+	c.draw3D(renderer)
+	graphics.ErrorTrap(c.WriteFrameRate(renderer, FPSX, 0))
+}
+
+func (c *Controller) rotate(x, y, ox, oy float64) sdl.FPoint {
+	return sdl.FPoint{
+		X: float32((x-ox)*c.camera.cos2D - (y-oy)*c.camera.sin2D + ox),
+		Y: float32((y-oy)*c.camera.cos2D + (x-ox)*c.camera.sin2D + oy),
+	}
+
+}
+
+func (c *Controller) draw2D(renderer *sdl.Renderer) {
+	//offset := c.fov.width + 1
+	//renderer.SetDrawColor(uint8(0), uint8(0), uint8(0xFF), uint8(0xFF))
+	//renderer.DrawLine(int32(c.fov.width), 0, int32(c.fov.width), int32(c.fov.height))
+	//
+	//renderer.SetDrawColor(uint8(0xFF), uint8(0xFF), uint8(0xFF), uint8(0xFF))
+	//renderer.DrawLinesF([]sdl.FPoint{
+	//	c.rotate(c.camera.view.X+offset, c.camera.view.Y, c.camera.view.X+offset, c.camera.view.Y),
+	//	c.rotate(c.camera.view.X-5+offset, c.camera.view.Y+20, c.camera.view.X+offset, c.camera.view.Y),
+	//	c.rotate(c.camera.view.X+5+offset, c.camera.view.Y+20, c.camera.view.X+offset, c.camera.view.Y),
+	//	c.rotate(c.camera.view.X+offset, c.camera.view.Y, c.camera.view.X+offset, c.camera.view.Y),
+	//})
+	//renderer.SetDrawColor(uint8(0xFF), uint8(0), uint8(0), uint8(0xFF))
+	//renderer.DrawPointF(float32(c.camera.view.X+offset), float32(c.camera.view.Y))
+	//
+	////for _, shape := range c.shapes {
+	////	shape.Render(renderer)
+	////}
+}
+
+var xa float64
+
+func (c *Controller) draw3D(renderer *sdl.Renderer) {
+	xa = xa + .01
+	for _, shape := range c.shapes {
+		ts := shape.GetTriangles(
+			shapes.WorldMatrices(
+				matrix.RotationX(xa*1/3),
+				matrix.RotationY(xa*2/3),
+				matrix.RotationZ(xa),
+				matrix.Translation(0, 0, 9),
+			),
+			shapes.Normal(c.camera.view),
+			shapes.Project(),
+			shapes.Center(c.fov.cw, c.fov.ch),
+			shapes.Shade(c.camera.light),
+		)
+
+		var vs []sdl.Vertex
+		for _, t := range ts {
+			vs = append(vs, t.GetVertices()...)
+		}
+
+		renderer.RenderGeometry(nil, vs, nil)
+
+		renderer.SetDrawColor(0, 0, 0, 0xFF)
+		for _, t := range ts {
+			pts := t.GetPoints()
+			renderer.DrawLinesF(pts)
+		}
+	}
+}
