@@ -5,8 +5,6 @@
 package shapes
 
 import (
-	"g3-engine/matrix"
-
 	"github.com/veandco/go-sdl2/sdl"
 )
 
@@ -21,7 +19,7 @@ func NewTriangle(v1, v2, v3 *Vector, color uint32) *Triangle {
 	return &Triangle{
 		vectors: [3]*Vector{v1, v2, v3},
 		color:   color,
-		normal:  &Vector{0, 0, 1, 1},
+		normal:  NewVector(0, 0, 0),
 	}
 }
 
@@ -71,28 +69,8 @@ func (t *Triangle) process(f1, f2, f3 *Vector) *Triangle {
 	}
 }
 
-func RotateX(a float64) Transformations {
-	return func(t *Triangle) *Triangle {
-		return t.process(
-			rotateX(a)(t.vectors[0]),
-			rotateX(a)(t.vectors[1]),
-			rotateX(a)(t.vectors[2]),
-		)
-	}
-}
-
-func RotateY(a float64) Transformations {
-	return func(t *Triangle) *Triangle {
-		return t.process(
-			rotateY(a)(t.vectors[0]),
-			rotateY(a)(t.vectors[1]),
-			rotateY(a)(t.vectors[2]),
-		)
-	}
-}
-
-func WorldMatrices(matrices ...*matrix.Matrix4X4) Transformations {
-	m1 := matrix.Identity()
+func WorldMatrices(matrices ...*Matrix4X4) Transformations {
+	m1 := Identity()
 	for _, m := range matrices {
 		m1 = m1.Multiply(m)
 	}
@@ -105,22 +83,57 @@ func WorldMatrices(matrices ...*matrix.Matrix4X4) Transformations {
 	}
 }
 
+func RotateX(a float64) Transformations {
+	return func(t *Triangle) *Triangle {
+		rotation := RotationX(a)
+		return t.process(
+			t.vectors[0].MatrixMultiply(rotation),
+			t.vectors[1].MatrixMultiply(rotation),
+			t.vectors[2].MatrixMultiply(rotation),
+		)
+	}
+}
+
+func RotateY(a float64) Transformations {
+	return func(t *Triangle) *Triangle {
+		rotation := RotationY(a)
+		return t.process(
+			t.vectors[0].MatrixMultiply(rotation),
+			t.vectors[1].MatrixMultiply(rotation),
+			t.vectors[2].MatrixMultiply(rotation),
+		)
+	}
+}
+
 func RotateZ(a float64) Transformations {
 	return func(t *Triangle) *Triangle {
+		rotation := RotationZ(a)
 		return t.process(
-			rotateZ(a)(t.vectors[0]),
-			rotateZ(a)(t.vectors[1]),
-			rotateZ(a)(t.vectors[2]),
+			t.vectors[0].MatrixMultiply(rotation),
+			t.vectors[1].MatrixMultiply(rotation),
+			t.vectors[2].MatrixMultiply(rotation),
 		)
 	}
 }
 
 func Translate(x, y, z float64) Transformations {
 	return func(t *Triangle) *Triangle {
+		rotation := Translation(x, y, z)
 		return t.process(
-			translate(x, y, z)(t.vectors[0]),
-			translate(x, y, z)(t.vectors[1]),
-			translate(x, y, z)(t.vectors[2]),
+			t.vectors[0].MatrixMultiply(rotation),
+			t.vectors[1].MatrixMultiply(rotation),
+			t.vectors[2].MatrixMultiply(rotation),
+		)
+	}
+}
+
+func Camera(up, camera, lookDir *Vector, yaw float64) Transformations {
+	return func(t *Triangle) *Triangle {
+		viewMatrix := LookAt(camera, camera.Add(lookDir.MatrixMultiply(RotationY(yaw))), up)
+		return t.process(
+			t.vectors[0].MatrixMultiply(viewMatrix),
+			t.vectors[1].MatrixMultiply(viewMatrix),
+			t.vectors[2].MatrixMultiply(viewMatrix),
 		)
 	}
 }
@@ -134,7 +147,7 @@ func Normal(camera *Vector) Transformations {
 			Subtract(t.vectors[0]).
 			CrossProduct(t.vectors[2].Subtract(t.vectors[0])).
 			Normalize()
-		t.visible = t.normal.DotProduct(t.vectors[0].Subtract(camera)) < 0
+		t.visible = t.normal.DotProduct(t.vectors[0].Subtract(camera)) > 0
 		return t
 	}
 }

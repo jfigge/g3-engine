@@ -7,7 +7,6 @@ package controller
 import (
 	"math"
 
-	"g3-engine/matrix"
 	"g3-engine/shapes"
 
 	"github.com/jfigge/guilib/graphics"
@@ -48,14 +47,11 @@ const (
 )
 
 type Camera struct {
-	view  *shapes.Vector
-	light *shapes.Vector
-	l     float64 // Looking
-	a     float64 // viewing angle
-	sin3D float64
-	cos3D float64
-	sin2D float64
-	cos2D float64
+	up      *shapes.Vector
+	camera  *shapes.Vector
+	lookDir *shapes.Vector
+	yaw     float64
+	light   *shapes.Vector
 }
 
 type Fov struct {
@@ -78,14 +74,11 @@ type Controller struct {
 func NewController(width, height float64) *Controller {
 	c := &Controller{
 		camera: &Camera{
-			view:  shapes.NewVector(0, 0, 0),
-			light: shapes.NewVector(0, 0, -1),
-			a:     0,
-			l:     0,
-			sin3D: math.Sin(0),
-			cos3D: math.Cos(0),
-			sin2D: math.Sin(0),
-			cos2D: math.Cos(0),
+			up:      shapes.NewVector(0, 1, 0),
+			camera:  shapes.NewVector(0, 0, 0),
+			lookDir: shapes.NewVector(0, 0, 1),
+			light:   shapes.NewVector(0, 0, -1),
+			yaw:     -math.Pi,
 		},
 		fov: &Fov{
 			width:  width,
@@ -99,12 +92,12 @@ func NewController(width, height float64) *Controller {
 	c.fov.fdov = 1000 //c.fov.ndov * DOV
 	a := width / height
 
-	shapes := shapes.LoadShapes(matrix.Projection(a, 1/f, c.fov.ndov, c.fov.fdov))
+	shapes := shapes.LoadShapes(shapes.Projection(a, 1/f, c.fov.ndov, c.fov.fdov))
 	c.shapes = append(c.shapes,
-		shapes.Spaceship().
-			Locate(c.fov.cw, c.fov.ch, c.fov.ndov*2).
-			Rotate(22, 44, 66).
-			Scale(50, 50, 50),
+		shapes.Axis(),
+		//Locate(c.fov.cw, c.fov.ch, c.fov.ndov*2).
+		//Rotate(22, 44, 66).
+		//Scale(50, 50, 50),
 	)
 	return c
 }
@@ -118,52 +111,28 @@ func (c *Controller) Init(canvas *graphics.Canvas) {
 
 func (c *Controller) OnDraw(renderer *sdl.Renderer) {
 	graphics.ErrorTrap(c.Clear(renderer, uint32(0x232323)))
-	c.draw2D(renderer)
 	c.draw3D(renderer)
 	graphics.ErrorTrap(c.WriteFrameRate(renderer, FPSX, 0))
 }
 
-func (c *Controller) rotate(x, y, ox, oy float64) sdl.FPoint {
-	return sdl.FPoint{
-		X: float32((x-ox)*c.camera.cos2D - (y-oy)*c.camera.sin2D + ox),
-		Y: float32((y-oy)*c.camera.cos2D + (x-ox)*c.camera.sin2D + oy),
-	}
-
-}
-
-func (c *Controller) draw2D(renderer *sdl.Renderer) {
-	//offset := c.fov.width + 1
-	//renderer.SetDrawColor(uint8(0), uint8(0), uint8(0xFF), uint8(0xFF))
-	//renderer.DrawLine(int32(c.fov.width), 0, int32(c.fov.width), int32(c.fov.height))
-	//
-	//renderer.SetDrawColor(uint8(0xFF), uint8(0xFF), uint8(0xFF), uint8(0xFF))
-	//renderer.DrawLinesF([]sdl.FPoint{
-	//	c.rotate(c.camera.view.X+offset, c.camera.view.Y, c.camera.view.X+offset, c.camera.view.Y),
-	//	c.rotate(c.camera.view.X-5+offset, c.camera.view.Y+20, c.camera.view.X+offset, c.camera.view.Y),
-	//	c.rotate(c.camera.view.X+5+offset, c.camera.view.Y+20, c.camera.view.X+offset, c.camera.view.Y),
-	//	c.rotate(c.camera.view.X+offset, c.camera.view.Y, c.camera.view.X+offset, c.camera.view.Y),
-	//})
-	//renderer.SetDrawColor(uint8(0xFF), uint8(0), uint8(0), uint8(0xFF))
-	//renderer.DrawPointF(float32(c.camera.view.X+offset), float32(c.camera.view.Y))
-	//
-	////for _, shape := range c.shapes {
-	////	shape.Render(renderer)
-	////}
+func (c *Controller) OnUpdate() {
+	c.processKeys()
 }
 
 var xa float64
 
 func (c *Controller) draw3D(renderer *sdl.Renderer) {
-	xa = xa + .01
+	//xa = xa + .01
 	for _, shape := range c.shapes {
 		ts := shape.GetTriangles(
 			shapes.WorldMatrices(
-				matrix.RotationX(xa*1/3),
-				matrix.RotationY(xa*2/3),
-				matrix.RotationZ(xa),
-				matrix.Translation(0, 0, 9),
+				shapes.RotationX(xa*1/2),
+				shapes.RotationY(xa*2/3),
+				shapes.RotationZ(xa),
+				shapes.Translation(0, 0, 9),
 			),
-			shapes.Normal(c.camera.view),
+			shapes.Camera(c.camera.up, c.camera.camera, c.camera.lookDir, c.camera.yaw),
+			shapes.Normal(shapes.NewVector(0, 0, 0)),
 			shapes.Project(),
 			shapes.Center(c.fov.cw, c.fov.ch),
 			shapes.Shade(c.camera.light),
@@ -176,10 +145,67 @@ func (c *Controller) draw3D(renderer *sdl.Renderer) {
 
 		renderer.RenderGeometry(nil, vs, nil)
 
-		renderer.SetDrawColor(0, 0, 0, 0xFF)
-		for _, t := range ts {
-			pts := t.GetPoints()
-			renderer.DrawLinesF(pts)
-		}
+		//renderer.SetDrawColor(0, 0, 0, 0xFF)
+		//for _, t := range ts {
+		//	pts := t.GetPoints()
+		//	renderer.DrawLinesF(pts)
+		//}
+	}
+}
+
+func (c *Controller) processKeys() {
+	codes := sdl.GetKeyboardState()
+	//shift := codes[sdl.SCANCODE_LSHIFT] == 1 || codes[sdl.SCANCODE_RSHIFT] == 1
+	if codes[sdl.SCANCODE_UP] == 1 {
+		c.move(DirectionCdMoveUp)
+	} else if codes[sdl.SCANCODE_DOWN] == 1 {
+		c.move(DirectionCdMoveDown)
+	}
+	if codes[sdl.SCANCODE_LEFT] == 1 {
+		c.move(DirectionCdStrafeLeft)
+	} else if codes[sdl.SCANCODE_RIGHT] == 1 {
+		c.move(DirectionCdStrafeRight)
+	}
+	if codes[sdl.SCANCODE_W] == 1 {
+		c.move(DirectionCdForward)
+	} else if codes[sdl.SCANCODE_S] == 1 {
+		c.move(DirectionCdBackward)
+	}
+	if codes[sdl.SCANCODE_A] == 1 {
+		c.move(DirectionCdAntiClockwise)
+	} else if codes[sdl.SCANCODE_D] == 1 {
+		c.move(DirectionCdClockwise)
+	}
+}
+
+func (c *Controller) move(dir DirectionCd) {
+	switch dir {
+	case DirectionCdForward:
+		c.camera.camera = c.camera.camera.Add(c.camera.lookDir.Multiply(.2))
+	case DirectionCdBackward:
+		c.camera.camera = c.camera.camera.Subtract(c.camera.lookDir.Multiply(.2))
+	case DirectionCdStrafeLeft:
+		c.camera.camera.X += .2
+	case DirectionCdStrafeRight:
+		c.camera.camera.X -= .2
+	case DirectionCdMoveUp:
+		c.camera.camera.Y -= .2
+	case DirectionCdMoveDown:
+		c.camera.camera.Y += .2
+	case DirectionCdLookUp:
+		//c.camera.l += 1
+		//if c.camera.l > cameraHeight {
+		//	c.camera.l = cameraHeight
+		//}
+	case DirectionCdLookDown:
+		//c.camera.l -= 1
+		//if c.camera.l < -cameraHeight {
+		//	c.camera.l = -cameraHeight
+		//}
+	case DirectionCdAntiClockwise:
+		c.camera.yaw += .01
+	case DirectionCdClockwise:
+		c.camera.yaw -= .01
+
 	}
 }

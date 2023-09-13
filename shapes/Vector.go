@@ -7,8 +7,6 @@ package shapes
 import (
 	"fmt"
 	"math"
-
-	"g3-engine/matrix"
 )
 
 type Vector struct {
@@ -29,12 +27,6 @@ func NewVectorW(x, y, z, w float64) *Vector {
 type VectorTransformations func(*Vector) *Vector
 type XXX func() Vector
 
-func translate(x, y, z float64) VectorTransformations {
-	return func(v *Vector) *Vector {
-		return v.MatrixMultiply(matrix.Translation(x, y, z))
-	}
-}
-
 func center(x, y float64) VectorTransformations {
 	return func(v *Vector) *Vector {
 		return &Vector{
@@ -42,24 +34,6 @@ func center(x, y float64) VectorTransformations {
 			Y: (v.Y + 1) * y,
 			Z: v.Z,
 		}
-	}
-}
-
-func rotateX(a float64) VectorTransformations {
-	return func(v *Vector) *Vector {
-		return v.MatrixMultiply(matrix.RotationX(a))
-	}
-}
-
-func rotateY(a float64) VectorTransformations {
-	return func(v *Vector) *Vector {
-		return v.MatrixMultiply(matrix.RotationY(a))
-	}
-}
-
-func rotateZ(a float64) VectorTransformations {
-	return func(v *Vector) *Vector {
-		return v.MatrixMultiply(matrix.RotationZ(a))
 	}
 }
 
@@ -144,7 +118,7 @@ func (v *Vector) Divide(l float64) *Vector {
 	}
 }
 
-func (v *Vector) MatrixMultiply(matrix *matrix.Matrix4X4) *Vector {
+func (v *Vector) MatrixMultiply(matrix *Matrix4X4) *Vector {
 	return &Vector{
 		X: v.X*matrix[0][0] + v.Y*matrix[1][0] + v.Z*matrix[2][0] + v.W*matrix[3][0],
 		Y: v.X*matrix[0][1] + v.Y*matrix[1][1] + v.Z*matrix[2][1] + v.W*matrix[3][1],
