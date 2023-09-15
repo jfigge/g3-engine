@@ -23,7 +23,7 @@ func NewTriangle(v1, v2, v3 *Vector, color uint32) *Triangle {
 	}
 }
 
-func (t *Triangle) GetPoints() []sdl.FPoint {
+func (t *Triangle) Points() []sdl.FPoint {
 	return []sdl.FPoint{
 		{X: float32(t.vectors[0].X), Y: float32(t.vectors[0].Y)},
 		{X: float32(t.vectors[1].X), Y: float32(t.vectors[1].Y)},
@@ -32,8 +32,8 @@ func (t *Triangle) GetPoints() []sdl.FPoint {
 	}
 }
 
-func (t *Triangle) GetVertices() []sdl.Vertex {
-	c := t.GetFaceColor()
+func (t *Triangle) Vertices() []sdl.Vertex {
+	c := t.FaceColor()
 	return []sdl.Vertex{
 		{Position: sdl.FPoint{X: float32(t.vectors[0].X), Y: float32(t.vectors[0].Y)}, Color: c, TexCoord: sdl.FPoint{}},
 		{Position: sdl.FPoint{X: float32(t.vectors[1].X), Y: float32(t.vectors[1].Y)}, Color: c, TexCoord: sdl.FPoint{}},
@@ -42,13 +42,17 @@ func (t *Triangle) GetVertices() []sdl.Vertex {
 
 }
 
-func (t *Triangle) GetFaceColor() sdl.Color {
+func (t *Triangle) FaceColor() sdl.Color {
 	return sdl.Color{
 		R: uint8(t.color >> 24),
 		G: uint8(t.color >> 16),
 		B: uint8(t.color >> 8),
 		A: uint8(t.color),
 	}
+}
+
+func (t *Triangle) Depth() float64 {
+	return (t.vectors[0].Z + t.vectors[1].Z + t.vectors[2].Z) / 3
 }
 
 type Transformations func(*Triangle) *Triangle
@@ -70,9 +74,9 @@ func (t *Triangle) process(f1, f2, f3 *Vector) *Triangle {
 }
 
 func WorldMatrices(matrices ...*Matrix4X4) Transformations {
-	m1 := Identity()
+	m1 := IdentityMatrix()
 	for _, m := range matrices {
-		m1 = m1.Multiply(m)
+		m1 = m1.MultiplyMatrix(m)
 	}
 	return func(t *Triangle) *Triangle {
 		return t.process(
@@ -85,7 +89,7 @@ func WorldMatrices(matrices ...*Matrix4X4) Transformations {
 
 func RotateX(a float64) Transformations {
 	return func(t *Triangle) *Triangle {
-		rotation := RotationX(a)
+		rotation := RotateXMatrix(a)
 		return t.process(
 			t.vectors[0].MatrixMultiply(rotation),
 			t.vectors[1].MatrixMultiply(rotation),
@@ -96,7 +100,7 @@ func RotateX(a float64) Transformations {
 
 func RotateY(a float64) Transformations {
 	return func(t *Triangle) *Triangle {
-		rotation := RotationY(a)
+		rotation := RotateYMatrix(a)
 		return t.process(
 			t.vectors[0].MatrixMultiply(rotation),
 			t.vectors[1].MatrixMultiply(rotation),
@@ -107,7 +111,7 @@ func RotateY(a float64) Transformations {
 
 func RotateZ(a float64) Transformations {
 	return func(t *Triangle) *Triangle {
-		rotation := RotationZ(a)
+		rotation := RotateZMatrix(a)
 		return t.process(
 			t.vectors[0].MatrixMultiply(rotation),
 			t.vectors[1].MatrixMultiply(rotation),
@@ -118,7 +122,7 @@ func RotateZ(a float64) Transformations {
 
 func Translate(x, y, z float64) Transformations {
 	return func(t *Triangle) *Triangle {
-		rotation := Translation(x, y, z)
+		rotation := TranslateMatrix(x, y, z)
 		return t.process(
 			t.vectors[0].MatrixMultiply(rotation),
 			t.vectors[1].MatrixMultiply(rotation),
@@ -129,7 +133,9 @@ func Translate(x, y, z float64) Transformations {
 
 func Camera(up, camera, lookDir *Vector, yaw float64) Transformations {
 	return func(t *Triangle) *Triangle {
-		viewMatrix := LookAt(camera, camera.Add(lookDir.MatrixMultiply(RotationY(yaw))), up)
+
+		lookDir.Map(lookDir.MatrixMultiply(RotateYMatrix(yaw)))
+		viewMatrix := LookAtMatrix(camera, camera.Add(lookDir), up)
 		return t.process(
 			t.vectors[0].MatrixMultiply(viewMatrix),
 			t.vectors[1].MatrixMultiply(viewMatrix),

@@ -19,11 +19,11 @@ var (
 	}
 )
 
-func Identity() *Matrix4X4 {
+func IdentityMatrix() *Matrix4X4 {
 	return identity
 }
 
-func Translation(x, y, z float64) *Matrix4X4 {
+func TranslateMatrix(x, y, z float64) *Matrix4X4 {
 	return &Matrix4X4{
 		{1, 0, 0, 0},
 		{0, 1, 0, 0},
@@ -32,7 +32,7 @@ func Translation(x, y, z float64) *Matrix4X4 {
 	}
 }
 
-func Projection(aspectRatio, fovRad, near, far float64) *Matrix4X4 {
+func ProjectMatrix(aspectRatio, fovRad, near, far float64) *Matrix4X4 {
 	return &Matrix4X4{
 		{aspectRatio * fovRad, 0, 0, 0},
 		{0, fovRad, 0, 0},
@@ -41,7 +41,7 @@ func Projection(aspectRatio, fovRad, near, far float64) *Matrix4X4 {
 	}
 }
 
-func RotationX(angle float64) *Matrix4X4 {
+func RotateXMatrix(angle float64) *Matrix4X4 {
 	return &Matrix4X4{
 		{1, 0, 0, 0},
 		{0, math.Cos(angle), -math.Sin(angle), 0},
@@ -49,7 +49,7 @@ func RotationX(angle float64) *Matrix4X4 {
 		{0, 0, 0, 1},
 	}
 }
-func RotationY(angle float64) *Matrix4X4 {
+func RotateYMatrix(angle float64) *Matrix4X4 {
 	return &Matrix4X4{
 		{math.Cos(angle), 0, math.Sin(angle), 0},
 		{0, 1, 0, 0},
@@ -58,7 +58,7 @@ func RotationY(angle float64) *Matrix4X4 {
 	}
 }
 
-func RotationZ(angle float64) *Matrix4X4 {
+func RotateZMatrix(angle float64) *Matrix4X4 {
 	return &Matrix4X4{
 		{math.Cos(angle), -math.Sin(angle), 0, 0},
 		{math.Sin(angle), math.Cos(angle), 0},
@@ -67,19 +67,19 @@ func RotationZ(angle float64) *Matrix4X4 {
 	}
 }
 
-func PointAt(pos, target, up *Vector) *Matrix4X4 {
-	newForward := target.Subtract(pos).Normalize()
-	newUp := up.Subtract(newForward.Multiply(up.DotProduct(newForward))).Normalize()
-	newRight := newForward.CrossProduct(newUp)
-	return &Matrix4X4{
-		{newRight.X, newRight.Y, newRight.Z, 0},
-		{newUp.X, newUp.Y, newUp.Z, 0},
-		{newForward.X, newForward.Y, newForward.Z, 0},
-		{pos.X, pos.Y, pos.Z, 1},
-	}
-}
+//func PointAt(pos, target, up *Vector) *Matrix4X4 {
+//	newForward := target.Subtract(pos).Normalize()
+//	newUp := up.Subtract(newForward.Multiply(up.DotProduct(newForward))).Normalize()
+//	newRight := newForward.CrossProduct(newUp)
+//	return &Matrix4X4{
+//		{newRight.X, newRight.Y, newRight.Z, 0},
+//		{newUp.X, newUp.Y, newUp.Z, 0},
+//		{newForward.X, newForward.Y, newForward.Z, 0},
+//		{pos.X, pos.Y, pos.Z, 1},
+//	}
+//}
 
-func LookAt(pos, target, up *Vector) *Matrix4X4 {
+func LookAtMatrix(pos, target, up *Vector) *Matrix4X4 {
 	newForward := target.Subtract(pos).Normalize()
 	newUp := up.Subtract(newForward.Multiply(up.DotProduct(newForward))).Normalize()
 	newRight := newForward.CrossProduct(newUp)
@@ -94,7 +94,7 @@ func LookAt(pos, target, up *Vector) *Matrix4X4 {
 	}
 }
 
-func (m *Matrix4X4) Multiply(m1 *Matrix4X4) *Matrix4X4 {
+func (m *Matrix4X4) MultiplyMatrix(m1 *Matrix4X4) *Matrix4X4 {
 	mo := &Matrix4X4{}
 	for c := 0; c < 4; c++ {
 		for r := 0; r < 4; r++ {

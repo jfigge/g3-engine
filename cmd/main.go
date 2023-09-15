@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	screenWidth  = 720
+	screenWidth  = 360 //720
 	screenHeight = 360
 	Scale        = 2
 )
@@ -23,7 +23,7 @@ func main() {
 		"g3 engine",
 		screenWidth*Scale,
 		screenHeight*Scale,
-		controller.NewController(screenWidth/2, screenHeight),
+		controller.NewController(screenWidth /*/2*/, screenHeight),
 		graphics.Framerate(60),
 	)
 	fmt.Println("Game over")

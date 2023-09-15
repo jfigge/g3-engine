@@ -5,6 +5,7 @@
 package controller
 
 import (
+	"fmt"
 	"math"
 
 	"g3-engine/shapes"
@@ -15,7 +16,7 @@ import (
 )
 
 const (
-	FPSX = 605
+	FPSX = 205
 	FOV  = 90
 	DOV  = 20
 )
@@ -92,7 +93,7 @@ func NewController(width, height float64) *Controller {
 	c.fov.fdov = 1000 //c.fov.ndov * DOV
 	a := width / height
 
-	shapes := shapes.LoadShapes(shapes.Projection(a, 1/f, c.fov.ndov, c.fov.fdov))
+	shapes := shapes.LoadShapes(shapes.ProjectMatrix(a, 1/f, c.fov.ndov, c.fov.fdov))
 	c.shapes = append(c.shapes,
 		shapes.Axis(),
 		//Locate(c.fov.cw, c.fov.ch, c.fov.ndov*2).
@@ -105,7 +106,7 @@ func NewController(width, height float64) *Controller {
 func (c *Controller) Init(canvas *graphics.Canvas) {
 	fonts.LoadFonts(canvas.Renderer())
 	graphics.ErrorTrap(canvas.Renderer().SetDrawBlendMode(sdl.BLENDMODE_BLEND))
-	canvas.Renderer().SetLogicalSize(int32(c.fov.width*2+1), int32(c.fov.height))
+	canvas.Renderer().SetLogicalSize(int32(c.fov.width), int32(c.fov.height))
 	c.AddDestroyer(fonts.FreeFonts)
 }
 
@@ -113,6 +114,7 @@ func (c *Controller) OnDraw(renderer *sdl.Renderer) {
 	graphics.ErrorTrap(c.Clear(renderer, uint32(0x232323)))
 	c.draw3D(renderer)
 	graphics.ErrorTrap(c.WriteFrameRate(renderer, FPSX, 0))
+	fonts.Default.PrintfAt(renderer, 20, 20, 0xFFFFFF, fmt.Sprintf("Camera: %f, %f, %f", c.camera.camera.X, c.camera.camera.Y, c.camera.camera.Z))
 }
 
 func (c *Controller) OnUpdate() {
@@ -126,21 +128,24 @@ func (c *Controller) draw3D(renderer *sdl.Renderer) {
 	for _, shape := range c.shapes {
 		ts := shape.GetTriangles(
 			shapes.WorldMatrices(
-				shapes.RotationX(xa*1/2),
-				shapes.RotationY(xa*2/3),
-				shapes.RotationZ(xa),
-				shapes.Translation(0, 0, 9),
+				shapes.RotateXMatrix(xa*1/2),
+				shapes.RotateYMatrix(xa*2/3),
+				shapes.RotateZMatrix(xa),
+				shapes.TranslateMatrix(0, 0, 9),
 			),
+			shapes.Normal(c.camera.camera),
 			shapes.Camera(c.camera.up, c.camera.camera, c.camera.lookDir, c.camera.yaw),
-			shapes.Normal(shapes.NewVector(0, 0, 0)),
 			shapes.Project(),
 			shapes.Center(c.fov.cw, c.fov.ch),
 			shapes.Shade(c.camera.light),
 		)
+		//slices.SortFunc(ts, func(t1 *shapes.Triangle, t2 *shapes.Triangle) int {
+		//	return int(t1.Depth() - t2.Depth())
+		//})
 
 		var vs []sdl.Vertex
 		for _, t := range ts {
-			vs = append(vs, t.GetVertices()...)
+			vs = append(vs, t.Vertices()...)
 		}
 
 		renderer.RenderGeometry(nil, vs, nil)
@@ -181,17 +186,17 @@ func (c *Controller) processKeys() {
 func (c *Controller) move(dir DirectionCd) {
 	switch dir {
 	case DirectionCdForward:
-		c.camera.camera = c.camera.camera.Add(c.camera.lookDir.Multiply(.2))
+		c.camera.camera.Map(c.camera.camera.Add(c.camera.lookDir.Multiply(.2)))
 	case DirectionCdBackward:
-		c.camera.camera = c.camera.camera.Subtract(c.camera.lookDir.Multiply(.2))
+		c.camera.camera.Map(c.camera.camera.Subtract(c.camera.lookDir.Multiply(.2)))
 	case DirectionCdStrafeLeft:
 		c.camera.camera.X += .2
 	case DirectionCdStrafeRight:
 		c.camera.camera.X -= .2
 	case DirectionCdMoveUp:
-		c.camera.camera.Y -= .2
-	case DirectionCdMoveDown:
 		c.camera.camera.Y += .2
+	case DirectionCdMoveDown:
+		c.camera.camera.Y -= .2
 	case DirectionCdLookUp:
 		//c.camera.l += 1
 		//if c.camera.l > cameraHeight {
@@ -203,9 +208,9 @@ func (c *Controller) move(dir DirectionCd) {
 		//	c.camera.l = -cameraHeight
 		//}
 	case DirectionCdAntiClockwise:
-		c.camera.yaw += .01
-	case DirectionCdClockwise:
 		c.camera.yaw -= .01
+	case DirectionCdClockwise:
+		c.camera.yaw += .01
 
 	}
 }

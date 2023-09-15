@@ -126,3 +126,10 @@ func (v *Vector) MatrixMultiply(matrix *Matrix4X4) *Vector {
 		W: v.X*matrix[0][3] + v.Y*matrix[1][3] + v.Z*matrix[2][3] + v.W*matrix[3][3],
 	}
 }
+
+func (v *Vector) Map(v1 *Vector) {
+	v.X = v1.X
+	v.Y = v1.Y
+	v.Z = v1.Z
+	v.W = v1.W
+}
