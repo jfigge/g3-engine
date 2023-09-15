@@ -13,24 +13,24 @@ import (
 	"strconv"
 	"strings"
 
-	"g3-engine/matrix"
-
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-var projectionMatrix *matrix.Matrix4X4
+var projectionMatrix *Matrix4X4
 
 type Shapes struct {
 	shapes map[string]*Shape
 }
 
-func LoadShapes(pm *matrix.Matrix4X4) *Shapes {
+func LoadShapes(pm *Matrix4X4) *Shapes {
 	projectionMatrix = pm
 	s := &Shapes{
 		shapes: map[string]*Shape{},
 	}
 	s.shapes["cube"] = createCube()
 	s.shapes["spaceship"] = loadObject("spaceship.obj")
+	s.shapes["teapot"] = loadObject("teapot.obj")
+	s.shapes["axis"] = loadObject("axis.obj")
 	return s
 }
 
@@ -40,6 +40,14 @@ func (s *Shapes) Cube() *Shape {
 
 func (s *Shapes) Spaceship() *Shape {
 	return s.shapes["spaceship"].duplicate()
+}
+
+func (s *Shapes) Teapot() *Shape {
+	return s.shapes["teapot"].duplicate()
+}
+
+func (s *Shapes) Axis() *Shape {
+	return s.shapes["axis"].duplicate()
 }
 
 func createCube() *Shape {
@@ -85,9 +93,9 @@ func createCube() *Shape {
 	}
 	s := &Shape{
 		ts:       make([]*Triangle, len(idx)/4),
-		location: &Vector{0, 0, 0, 0},
-		rotation: &Vector{0, 0, 0, 0},
-		scale:    &Vector{1, 1, 1, 0},
+		location: NewVector(0, 0, 0),
+		rotation: NewVector(0, 0, 0),
+		scale:    NewVector(1, 1, 1),
 	}
 	for i := 0; i < len(idx)/4; i++ {
 		s.ts[i] = NewTriangle(
@@ -139,9 +147,9 @@ func loadObject(filename string) *Shape {
 	}
 	return &Shape{
 		ts:       ts,
-		location: &Vector{},
-		rotation: &Vector{},
-		scale:    &Vector{},
+		location: NewVector(0, 0, 0),
+		rotation: NewVector(0, 0, 0),
+		scale:    NewVector(1, 1, 1),
 		color:    sdl.Color{R: uint8(0xff), G: uint8(0xff), B: uint8(0xff), A: uint8(0xff)},
 	}
 }
@@ -169,7 +177,7 @@ func parseVector(line string, lineCnt int) *Vector {
 		log.Panicf("Bad Z in line %d: %s", lineCnt, line)
 	}
 
-	return &Vector{X: x, Y: y, Z: z, W: 1}
+	return NewVector(x, y, z)
 }
 
 func parseFace(pts []*Vector, line string, lineCnt int) *Triangle {
@@ -197,7 +205,7 @@ func parseFace(pts []*Vector, line string, lineCnt int) *Triangle {
 
 	return &Triangle{
 		vectors: [3]*Vector{pts[x-1], pts[y-1], pts[z-1]},
-		normal:  &Vector{},
+		normal:  NewVector(0, 0, 0),
 		visible: true,
 		color:   uint32(0xFFFFFFFF),
 	}

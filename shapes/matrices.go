@@ -2,7 +2,7 @@
  * Copyright (C) 2023 by Jason Figge
  */
 
-package matrix
+package shapes
 
 import (
 	"math"
@@ -64,6 +64,33 @@ func RotationZ(angle float64) *Matrix4X4 {
 		{math.Sin(angle), math.Cos(angle), 0},
 		{0, 0, 1, 0},
 		{0, 0, 0, 1},
+	}
+}
+
+func PointAt(pos, target, up *Vector) *Matrix4X4 {
+	newForward := target.Subtract(pos).Normalize()
+	newUp := up.Subtract(newForward.Multiply(up.DotProduct(newForward))).Normalize()
+	newRight := newForward.CrossProduct(newUp)
+	return &Matrix4X4{
+		{newRight.X, newRight.Y, newRight.Z, 0},
+		{newUp.X, newUp.Y, newUp.Z, 0},
+		{newForward.X, newForward.Y, newForward.Z, 0},
+		{pos.X, pos.Y, pos.Z, 1},
+	}
+}
+
+func LookAt(pos, target, up *Vector) *Matrix4X4 {
+	newForward := target.Subtract(pos).Normalize()
+	newUp := up.Subtract(newForward.Multiply(up.DotProduct(newForward))).Normalize()
+	newRight := newForward.CrossProduct(newUp)
+	return &Matrix4X4{
+		{newRight.X, newUp.X, newForward.X, 0},
+		{newRight.Y, newUp.Y, newForward.Y, 0},
+		{newRight.Z, newUp.Z, newForward.Z, 0},
+		{
+			-(pos.X*newRight.X + pos.Y*newUp.X + pos.Z*newForward.X),
+			-(pos.X*newRight.Y + pos.Y*newUp.Y + pos.Z*newForward.Y),
+			-(pos.Z*newRight.Z + pos.Z*newUp.Z + pos.Z*newForward.Z), 1},
 	}
 }
 
