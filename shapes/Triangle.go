@@ -133,9 +133,9 @@ func Translate(x, y, z float64) Transformations {
 
 func Camera(up, camera, lookDir *Vector, yaw float64) Transformations {
 	return func(t *Triangle) *Triangle {
-
-		lookDir.Map(lookDir.MatrixMultiply(RotateYMatrix(yaw)))
-		viewMatrix := LookAtMatrix(camera, camera.Add(lookDir), up)
+		viewMatrix := LookAtMatrix(camera, camera.Add(lookDir.MatrixMultiply(RotateYMatrix(yaw))), up)
+		//		lookDir.Map(lookDir.MatrixMultiply(RotateYMatrix(yaw)))
+		//		viewMatrix := LookAtMatrix(camera, camera.Add(lookDir), up)
 		return t.process(
 			t.vectors[0].MatrixMultiply(viewMatrix),
 			t.vectors[1].MatrixMultiply(viewMatrix),
